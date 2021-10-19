@@ -36,6 +36,8 @@ void list_machO(MJMachO *machO);
 void list_app(MJApp *app, int index);
 void list_apps(MJListAppsType type, NSString *regex);
 void init_colors(void);
+void print_list_usage(void);
+void print_reveal_usage(void);
 
 int main(int argc, const char * argv[]) {
     @autoreleasepool {
@@ -46,7 +48,13 @@ int main(int argc, const char * argv[]) {
             [MJPrintTools printError:@"MJAppTools目前不支持iOS8以下系统\n"];
             return 0;
         }
-    
+        
+//        [MJPrintTools print:@"argc = %d\n", argc];
+//        for (int i = 0; i < argc; i++) {
+//            [MJPrintTools print:@"argv[%d] = %s\n", i, argv[i]];
+//        }
+//        [MJPrintTools print:@"\n\n"];
+
         if (argc == 1) { // 参数不够
             print_usage();
             return 0;
@@ -67,6 +75,70 @@ int main(int argc, const char * argv[]) {
                 list_apps(MJListAppsTypeSystem, regex);
             } else {
                 list_apps(MJListAppsTypeUser, regex);
+            }
+        } else if (firstArg[0] == '-' && firstArg[1] == 'r') {// reveal
+            // re -r[ixar] [appid]
+            if (strlen(firstArg) <= 2) {
+                print_usage();
+                return 0;
+            }
+            
+            RevealCompletion completion = ^(id obj, NSError *error) {
+                if (error) {
+                    [MJPrintTools printError:error.localizedDescription];
+                    return;
+                }
+                if (obj) {
+                    [MJPrintTools print:obj];
+                }
+            };
+            
+            char c = firstArg[2];
+            if (c == 'i') {
+                [MJAppTools showRevealPlist:^(id obj, NSError *error) {
+                    completion(obj, error);
+                }];
+            } else if (c == 'x') {
+                void(^doit)(MJListAppsType) = ^(MJListAppsType type) {
+                    [MJAppTools listUserAppsWithType:type regex:nil operation:^(NSArray<MJApp *> *apps) {
+                        NSMutableArray *bundleIDS = [NSMutableArray array];
+                        for (MJApp *app in apps) {
+                            [bundleIDS addObject:app.bundleIdentifier];
+                        }
+                        [MJAppTools addItemsToRevealPlist:bundleIDS completion:^(NSMutableArray* obj, NSError *error) {
+                            completion([NSString stringWithFormat:@"添加 %lu 项： \n%@\n", obj.count, obj], error);
+                        }];
+                    }];
+                };
+                
+                MJListAppsType type = MJListAppsTypeUser;
+                if (strlen(firstArg) == 4) {
+                    if (firstArg[3] == 's') {// system
+                        type = MJListAppsTypeSystem;
+                    } else {
+                        print_usage();
+                        return 0;
+                    }
+                }
+                // user
+                doit(type);
+            } else {
+                if (argc <= 2) {
+                    [MJPrintTools printError:@"请输入bundle id\n"];
+                    return 0;
+                }
+                
+                NSString *bundleId = [NSString stringWithUTF8String:argv[2]];
+                
+                if (c == 'a') {
+                    [MJAppTools addItemToRevealPlist:bundleId completion:^(id obj, NSError *error) {
+                        completion([NSString stringWithFormat:@"添加： %@\n", bundleId], error);
+                    }];
+                } else if (c == 'r') {
+                    [MJAppTools removeItemFromRevealPlist:bundleId completion:^(NSMutableArray* obj, NSError *error) {
+                        completion([NSString stringWithFormat:@"移除 %lu 项： \n%@\n", obj.count, obj], error);
+                    }];
+                }
             }
         } else {
             print_usage();
@@ -89,6 +161,14 @@ void init_colors()
 
 void print_usage()
 {
+    print_list_usage();
+    print_reveal_usage();
+}
+
+void print_list_usage()
+{
+    [MJPrintTools printColor:MJPrintColorArch format:@"l ====> list\n"];
+
     [MJPrintTools printColor:MJPrintColorTip format:@"  -l  <regex>"];
     [MJPrintTools print:@"\t列出用户安装的应用\n"];
     
@@ -106,6 +186,26 @@ void print_usage()
     [MJPrintTools print:@"\t列出"];
     [MJPrintTools printColor:MJPrintColorCrypt format:@"系统"];
     [MJPrintTools print:@"的应用\n"];
+}
+
+void print_reveal_usage()
+{
+    [MJPrintTools printColor:MJPrintColorArch format:@"r ====> reveal\n"];
+
+    [MJPrintTools printColor:MJPrintColorTip format:@"  -ri             "];
+    [MJPrintTools print:@"\t(info)列出reveal.plist信息\n"];
+    
+    [MJPrintTools printColor:MJPrintColorTip format:@"  -rx             "];
+    [MJPrintTools print:@"\t(auto)自动添加用户应用的bundle id\n"];
+    
+    [MJPrintTools printColor:MJPrintColorTip format:@"  -rxs            "];
+    [MJPrintTools print:@"\t(auto)自动添加系统应用的bundle id\n"];
+    
+    [MJPrintTools printColor:MJPrintColorTip format:@"  -ra [bundle id] "];
+    [MJPrintTools print:@"\t(add)添加bundle id\n"];
+    
+    [MJPrintTools printColor:MJPrintColorTip format:@"  -rr [regex bundle id]"];
+    [MJPrintTools print:@"\t(remove)移除bundle id\n"];
 }
 
 void list_app(MJApp *app, int index)

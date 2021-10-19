@@ -13,6 +13,8 @@
 #import "LSApplicationProxy.h"
 #import "FBApplicationInfo.h"
 
+#define kRevealPath @"/Library/MobileSubstrate/DynamicLibraries/reveal2Loader.plist"
+
 @implementation MJAppTools
 
 + (BOOL)match:(NSRegularExpression *)exp app:(MJApp *)app
@@ -65,6 +67,96 @@
     }
     
     operation(apps);
+}
+
++ (NSError *)checkRevealPlist {
+    BOOL flag = [NSFileManager.defaultManager fileExistsAtPath:kRevealPath];
+    if (!flag) {
+        return [NSError errorWithDomain:NSURLErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey: @"找不到文件"}];
+    }
+    return nil;
+}
+
++ (void)showRevealPlist:(RevealCompletion)completion {
+    id obj;
+    NSError *error;
+    
+    error = [self checkRevealPlist];
+    if (!error) {
+        obj = [NSString stringWithContentsOfFile:kRevealPath encoding:NSUTF8StringEncoding error:&error];
+    }
+    
+    !completion ?: completion(obj, error);
+}
+
++ (void)addItemToRevealPlist:(NSString *)bundleID completion:(RevealCompletion)completion {
+    [self addItemsToRevealPlist:@[bundleID] completion:completion];
+}
+
++ (void)addItemsToRevealPlist:(NSArray<NSString *> *)bundleIDS completion:(RevealCompletion)completion {
+    id obj;
+    NSError *error;
+    
+    if (bundleIDS.count == 0) {
+        error = [NSError errorWithDomain:NSURLErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey: @"没有 bundleID"}];
+        goto final;
+    }
+    
+    error = [self checkRevealPlist];
+    if (!error) {
+        NSMutableDictionary *data = [[NSMutableDictionary alloc] initWithContentsOfFile:kRevealPath];
+        NSMutableDictionary *filter = data[@"Filter"];
+        NSArray *bundles = filter[@"Bundles"];
+        
+        obj = [NSMutableArray array];
+        NSMutableOrderedSet *set = [NSMutableOrderedSet orderedSetWithArray:bundles];
+        for (NSString *ID in bundleIDS) {
+            if (![set containsObject:ID]) {
+                [set addObject:ID];
+                [obj addObject:ID];
+            }
+        }
+        
+        data[@"Filter"][@"Bundles"] = [set array];
+        [data writeToFile:kRevealPath atomically:YES];
+    }
+    
+final:
+    !completion ?: completion(obj, error);
+}
+
+
++ (void)removeItemFromRevealPlist:(NSString *)bundleID completion:(RevealCompletion)completion {
+    id obj;
+    NSError *error;
+    
+    if (bundleID.length == 0) {
+        error = [NSError errorWithDomain:NSURLErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey: @"bundleID.length == 0"}];
+        goto final;
+    }
+    
+    error = [self checkRevealPlist];
+    if (!error) {
+        NSMutableDictionary *data = [[NSMutableDictionary alloc] initWithContentsOfFile:kRevealPath];
+        NSMutableDictionary *filter = data[@"Filter"];
+        NSArray *bundles = filter[@"Bundles"];
+        NSMutableArray *mutable_bundles = [bundles mutableCopy];
+
+        obj = [NSMutableArray array];
+        NSRegularExpression *exp = [NSRegularExpression regularExpressionWithPattern:bundleID options:NSRegularExpressionCaseInsensitive error:nil];
+        for (NSString *name in bundles) {
+            if ([exp firstMatchInString:name options:0 range:NSMakeRange(0, name.length)]) {
+                [mutable_bundles removeObject:name];
+                [obj addObject:name];
+            }
+        }
+        
+        data[@"Filter"][@"Bundles"] = mutable_bundles;
+        [data writeToFile:kRevealPath atomically:YES];
+    }
+    
+final:
+    !completion ?: completion(obj, error);
 }
 
 @end

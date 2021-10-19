@@ -16,8 +16,17 @@ typedef enum {
     MJListAppsTypeSystem
 } MJListAppsType;
 
+typedef void(^RevealCompletion)(id obj, NSError *error);
+
 @interface MJAppTools : NSObject
 
 + (void)listUserAppsWithType:(MJListAppsType)type regex:(NSString *)regex operation:(void (^)(NSArray *apps))operation;
+
++ (void)showRevealPlist:(RevealCompletion)completion;
+
++ (void)addItemToRevealPlist:(NSString *)bundleID completion:(RevealCompletion)completion;
++ (void)addItemsToRevealPlist:(NSArray<NSString *> *)bundleIDS completion:(RevealCompletion)completion;
+
++ (void)removeItemFromRevealPlist:(NSString *)bundleID completion:(RevealCompletion)completion;
 
 @end
