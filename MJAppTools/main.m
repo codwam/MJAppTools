@@ -229,6 +229,13 @@ void list_app(MJApp *app, int index)
         [MJPrintTools printColor:MJPrintColorPath format:app.dataPath];
     }
     
+    if (!app.executable) {
+        MJPrintNewLine;
+        [MJPrintTools print:@"  "];
+        [MJPrintTools printColor:MJPrintColorArch format:@"No binary found, probably a MonkeyDev project"];
+        return;
+    }
+    
     if (app.executable.isFat) {
         MJPrintNewLine;
         [MJPrintTools print:@"  "];

@@ -245,7 +245,8 @@
 
 // Image: /System/Library/Frameworks/UIKit.framework/UIKit
 
-- (struct CGSize { float x1; float x2; })_defaultStyleSize:(id)arg1;
+//- (struct CGSize { float x1; float x2; })_defaultStyleSize:(id)arg1;
+- (CGSize)_defaultStyleSize:(id)arg1;
 
 // Image: /System/Library/PrivateFrameworks/ChatKit.framework/ChatKit
 

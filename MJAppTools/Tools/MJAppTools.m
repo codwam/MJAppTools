@@ -57,7 +57,9 @@
         
         // 可执行文件
         [app setupExecutable];
-        if (!app.executable) continue;
+        
+        // No binary found, probably a MonkeyDev project
+//        if (!app.executable) continue;
         
         // 加密
         if (type == MJListAppsTypeUserDecrypted && app.executable.isEncrypted) continue;
